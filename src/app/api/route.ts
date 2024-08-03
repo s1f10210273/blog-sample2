@@ -9,30 +9,15 @@ type RequestBody = {
 
 export async function POST(request: Request): Promise<Response> {
   const bodyText = await request.text();
+  const { id, api: endpoint } = JSON.parse(bodyText) as RequestBody;
   const bodyBuffer = Buffer.from(bodyText, "utf-8");
 
-  const { id, api: endpoint } = JSON.parse(bodyText) as RequestBody;
-  if (!bodyText) {
-    console.error("Body is empty.");
-    return NextResponse.json({
-      status: 400,
-    });
-  }
-
   const secret = process.env.MICROCMS_WEBHOOK_SIGNATURE_SECRET;
-  if (!secret) {
-    console.error("Secret is empty.");
-    return NextResponse.json({
-      status: 500,
-    });
-  }
-
   const signature = request.headers.get("X-MICROCMS-Signature");
-  if (!signature) {
-    console.error("Signature is empty.");
-    return NextResponse.json({
-      status: 400,
-    });
+
+  if (!bodyText || !secret || !signature) {
+    console.error("Missing required information.");
+    return NextResponse.json({ status: 400, message: "Bad Request" });
   }
 
   const expectedSignature = crypto
@@ -47,12 +32,9 @@ export async function POST(request: Request): Promise<Response> {
 
   if (!isValid) {
     console.error("Invalid signature.");
-    return NextResponse.json({
-      status: 400,
-    });
+    return NextResponse.json({ status: 400, message: "Invalid Signature" });
   }
 
   revalidateTag("articles");
-
-  return NextResponse.json({ message: "success" });
+  return NextResponse.json({ message: "Success" });
 }
